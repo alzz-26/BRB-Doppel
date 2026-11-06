@@ -4,3 +4,4 @@ ProjectDocs/
 .venv/
 __pycache__/
 brb/__pycache__/
+data/

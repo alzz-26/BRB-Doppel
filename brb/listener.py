@@ -5,10 +5,13 @@ import uuid
 
 from dotenv import set_key
 from websockets.asyncio.client import connect
+from quiz_flow import handle_quiz
 
 # Importing post_message also loads .env.
 from post_message import ENV_PATH, post_message
 
+quiz_lock = asyncio.Lock()
+background_tasks = set()
 
 def connection_id() -> str:
     """Reuse one ID, so a reconnect counts as the same connection."""
@@ -22,17 +25,27 @@ def connection_id() -> str:
 
 async def handle_message(data: dict) -> None:
     payload = data.get("payload", {})
-    # We see every room message, but only act when BRB is tagged.
-    if not payload.get("addressed"):
-        return
-    print(f"{payload.get('sender_name')}: {payload.get('body')}")
-    if "help" in (payload.get("body") or "").lower():
-        reply = f"Hi {payload.get('sender_name')}, I'm BRB, your team's meeting manager. What can I help you with ?"
-    else:
-        reply = f"Hi {payload.get('sender_name')}, I'm BRB, your team's meeting manager."
+    text = payload.get("body") or ""
+    name = payload.get("sender_name") or "there"
+    addressed = bool(payload.get("addressed"))
+
+    # The lock handles one quiz step at a time. The thread keeps pings flowing.
+    async with quiz_lock:
+        reply = await asyncio.to_thread(
+            handle_quiz, payload.get("sender") or name, name, text, addressed
+        )
+
+    if reply is None:
+        if not addressed:
+            return
+        if "help" in text.lower():
+            reply = "Commands: `start quiz`, `cancel quiz`."
+        else:
+            reply = f"Hi {name}, I'm BRB, your team's meeting manager."
+
+    print(f"{name}: {text}")
     # post_message is blocking, so run it off the heartbeat loop.
     await asyncio.to_thread(post_message, data["room_id"], reply)
-
 
 async def listen() -> None:
     base = os.environ["SWITCH_URL"].replace("http://", "ws://", 1)
@@ -55,7 +68,10 @@ async def listen() -> None:
                 await socket.send(json.dumps({"type": "pong", "cursor": cursor}))
             elif event == "message":
                 cursor = data.get("sequence", cursor)
-                await handle_message(data)
+                # Run in the background so this loop can keep answering pings.
+                task = asyncio.create_task(handle_message(data))
+                background_tasks.add(task)
+                task.add_done_callback(background_tasks.discard)
             elif event == "refused":
                 print("Refused:", data)
             else:
