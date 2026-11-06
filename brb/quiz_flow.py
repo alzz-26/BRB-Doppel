@@ -34,12 +34,13 @@ def load_team() -> dict:
     return json.loads(TEAM_PATH.read_text(encoding="utf-8"))
 
 
-def write_persona(folder: str, name: str, answers: list[str]) -> None:
+def write_persona(folder: str, name: str, answers: list[str], username: str) -> None:
     doppel_folder = ROOT / "doppels" / folder
     archetype = ARCHETYPES[choose_archetype(answers)]
     style = write_style(name, archetype["title"], archetype["style"], style_picks(answers), doppel_folder)
     path = doppel_folder / "AGENTS.md"
-    path.write_text(build_persona(name, answers, style), encoding="utf-8")
+    persona = build_persona(name, answers, style, username, load_team())
+    path.write_text(persona, encoding="utf-8")
 
 
 def handle_quiz(sender_id: str, sender_name: str, text: str, addressed: bool) -> str | None:
@@ -73,7 +74,7 @@ def handle_quiz(sender_id: str, sender_name: str, text: str, addressed: bool) ->
         save_state(state)  # Save each answer as soon as we have it.
         return format_question(done)
 
-    write_persona(entry["folder"], entry["name"], entry["answers"])
+    write_persona(entry["folder"], entry["name"], entry["answers"], sender_name)
     card = build_card(entry["name"], entry["answers"])
     del state[sender_id]
     save_state(state)

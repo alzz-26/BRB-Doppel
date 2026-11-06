@@ -1,4 +1,4 @@
 {
-  "alzz_secondary": { "name": "Aliva", "folder": "Aliva" },
-  "alzz_26": { "name": "Alisha", "folder": "Alisha" }
+  "alzz_secondary": { "name": "Aliva", "folder": "Aliva", "doppel": "doppel.aliva" },
+  "alzz_26": { "name": "Alisha", "folder": "Alisha", "doppel": "doppel.alisha" }
 }

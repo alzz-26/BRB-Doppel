@@ -24,5 +24,23 @@ def post_message(room_id: str, content: str) -> dict:
     return response.json()
 
 
+def invite_agent(room_id: str, agent_name: str) -> dict:
+    """Bring another agent into a room that BRB is already in."""
+    url = (
+        f"{os.environ['SWITCH_URL']}/agents/{os.environ['BRB_AGENT_ID']}"
+        "/ops/invite_agent_to_room"
+    )
+    response = httpx.post(
+        url,
+        headers={"Authorization": f"Bearer {os.environ['BRB_API_KEY']}"},
+        json={"room_id": room_id, "agent_name": agent_name},
+        timeout=30,
+    )
+    if response.is_error:
+        print(response.status_code, response.text)
+    response.raise_for_status()
+    return response.json()
+
+
 if __name__ == "__main__":
     print(post_message(os.environ["SWITCH_ROOM_ID"], "BRB is online"))

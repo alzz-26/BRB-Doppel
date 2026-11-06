@@ -170,8 +170,34 @@ def style_picks(answers: list[str]) -> list[str]:
     return picks
 
 
-def build_persona(name: str, answers: list[str], style: str | None = None) -> str:
+def build_people_sections(name: str, username: str, team: dict) -> str:
+    """Tell a Doppel who its owner is and each teammate's real name."""
+    lines = [f"- `{key}` is {member['name']}" for key, member in team.items()]
+    people = "\n".join(lines)
+    return f"""
+## Your owner
+
+Your owner's Discord username is `{username}`. Call them {name}.
+When they ask for an update, tell them what happened while they were away,
+including anything you agreed to and anything waiting for their approval.
+
+## Your team
+
+People appear under their Discord usernames. Always use these names instead:
+
+{people}
+"""
+
+
+def build_persona(
+    name: str,
+    answers: list[str],
+    style: str | None = None,
+    username: str | None = None,
+    team: dict | None = None,
+) -> str:
     """Build the text of the Doppel's AGENTS.md file."""
+    people = build_people_sections(name, username, team) if username and team else ""
     archetype = ARCHETYPES[choose_archetype(answers)]
     mandate = build_mandate(answers)
     return f"""# Persona for {name}'s Doppel
@@ -195,18 +221,10 @@ You may commit to things only within these limits:
 
 Anything outside these limits is not yours to promise. Say it needs {name}'s
 approval and mark it as PENDING RATIFICATION.
-"""
+{people}"""
 
 
 def build_card(name: str, answers: list[str]) -> str:
+    """The public welcome. Never include the mandate limits here."""
     archetype = ARCHETYPES[choose_archetype(answers)]
-    mandate = build_mandate(answers)
-    return (
-        f"**{name} is {archetype['title']}!**\n"
-        f"{archetype['style']}\n\n"
-        f"**Doppel limits**\n"
-        f"New work: {mandate['extra_work']}\n"
-        f"Deadlines: {mandate['deadlines']}\n"
-        f"Tasks: {mandate['tasks']}\n"
-        f"Sharing: {mandate['sharing']}"
-    )
+    return f"**Welcome {name}!** {name} is {archetype['title']}."
