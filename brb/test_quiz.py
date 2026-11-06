@@ -54,7 +54,7 @@ def test_full_quiz_writes_persona_and_clears_state(tmp_path, monkeypatch):
     card = quiz_flow.handle_quiz("u1", "Aliva", "a", False)
     assert "The Midnight Shipper" in card
     persona = (tmp_path / "doppels" / "Aliva" / "AGENTS.md").read_text(encoding="utf-8")
-    assert "PENDING RATIFICATION" in persona
+    assert "PENDING RATIFICATION: what was asked" in persona
     assert "Your owner's Discord username is `Aliva`" in persona
     assert "- `Aliva` is Aliva" in persona
     assert quiz_flow.load_state() == {}

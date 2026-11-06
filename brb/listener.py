@@ -14,6 +14,8 @@ from meeting import (
     start_meeting,
 )
 
+from ledger import capture_items, handle_ledger_command, owner_of_doppel
+
 # Importing post_message also loads .env.
 from post_message import ENV_PATH, invite_agent, post_message
 from quiz import clean_text
@@ -55,13 +57,34 @@ async def run_meeting(room_id: str, seconds: int) -> None:
         await asyncio.to_thread(post_message, room_id, stand_in_message(member))
 
 
+async def ledger_command(name: str, text: str, team: dict) -> str | None:
+    """Keep the words' original case, so a rejection reason reads as typed."""
+    async with quiz_lock:
+        return await asyncio.to_thread(handle_ledger_command, name, clean_text(text), team)
+
+
 async def handle_message(data: dict) -> None:
     payload = data.get("payload", {})
     text = payload.get("body") or ""
     name = payload.get("sender_name") or "there"
     addressed = bool(payload.get("addressed"))
+    team = load_team()
     # `name` stays the username for lookups. `real_name` is for what people read.
-    real_name = load_team().get(name, {}).get("name", name)
+    real_name = team.get(name, {}).get("name", name)
+
+    # A Doppel's message can hold items for approval. BRB records them.
+    async with quiz_lock:
+        new_items = await asyncio.to_thread(capture_items, name, text, data["room_id"], team)
+    if new_items:
+        logged = ", ".join(f"#{item['id']}" for item in new_items)
+        owner = new_items[0]["name"]
+        note = f"Logged {logged} for {owner}'s approval."
+        await asyncio.to_thread(post_message, data["room_id"], note)
+        return
+
+    # Doppels only report to the ledger. BRB never holds a conversation with them.
+    if owner_of_doppel(name, team):
+        return
 
     # The lock handles one quiz step at a time. The thread keeps pings flowing.
     async with quiz_lock:
@@ -78,6 +101,8 @@ async def handle_message(data: dict) -> None:
             reply = f"Got it, {real_name} is here."
         elif not addressed:
             return
+        elif (ledger_reply := await ledger_command(name, text, team)) is not None:
+            reply = ledger_reply
         elif seconds is not None:
             if start_meeting(room_id):
                 reply = f"Meeting starting! Reply `here` within {seconds} seconds."
@@ -85,7 +110,10 @@ async def handle_message(data: dict) -> None:
             else:
                 reply = "A roll call is already running here."
         elif "help" in text.lower():
-            reply = "Commands: `start quiz`, `quit`, `meeting`, `meeting 30`."
+            reply = (
+                "Commands: `start quiz`, `quit`, `meeting`, `meeting 30`, "
+                "`debrief`, `approve 1`, `reject 1 reason`."
+            )
         else:
             reply = f"Hi {real_name}, I'm BRB, your team's meeting manager."
 
