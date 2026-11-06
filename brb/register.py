@@ -10,14 +10,19 @@ ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(ENV_PATH)
 
 
-def register_agent(base_url: str, registration_key: str) -> dict:
+def register_agent(
+    base_url: str,
+    registration_key: str,
+    name: str = "brb",
+    description: str = "Runs the BRB quiz, meeting checks and ledger.",
+) -> dict:
     """Create the BRB agent and return its id and api_key."""
     response = httpx.post(
         f"{base_url}/agents",
         headers={"Authorization": f"Bearer {registration_key}"},
         json={
-            "name": "brb",
-            "description": "Runs the BRB quiz, meeting checks and ledger.",
+            "name": name,
+            "description": description,
             "connector_type": "brb",
             "integration_profile": {
                 "connection_model": "always_on",

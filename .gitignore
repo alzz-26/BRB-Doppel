@@ -3,3 +3,4 @@ doppels/*/
 ProjectDocs/
 .venv/
 __pycache__/
+brb/__pycache__/
