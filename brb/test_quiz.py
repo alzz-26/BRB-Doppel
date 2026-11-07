@@ -85,3 +85,16 @@ def test_quit_works_with_or_without_a_tag(tmp_path, monkeypatch):
         quiz_flow.handle_quiz("u1", "Aliva", "start quiz", True)
         assert "cancelled" in quiz_flow.handle_quiz("u1", "Aliva", message, addressed)
         assert quiz_flow.load_state() == {}
+
+def test_a_quiz_stays_in_its_room_and_other_commands_pass(tmp_path, monkeypatch):
+    use_temp_folders(tmp_path, monkeypatch)
+    assert "Question 1" in quiz_flow.handle_quiz("u1", "Aliva", "start quiz", True, "private")
+    # Elsewhere, BRB's other commands are not quiz answers.
+    assert quiz_flow.handle_quiz("u1", "Aliva", "<@&1> debrief", True, "team") is None
+    assert quiz_flow.handle_quiz("u1", "Aliva", "a", False, "team") is None
+    # In the quiz room too, a command passes through, and the quiz waits.
+    assert quiz_flow.handle_quiz("u1", "Aliva", "<@&1> debrief", True, "private") is None
+    assert "Question 2" in quiz_flow.handle_quiz("u1", "Aliva", "a", False, "private")
+    # Asking again in another room moves the quiz there.
+    assert "Picking up your quiz here" in quiz_flow.handle_quiz("u1", "Aliva", "<@&1> start quiz", True, "team")
+    assert "Question 3" in quiz_flow.handle_quiz("u1", "Aliva", "b", False, "team")

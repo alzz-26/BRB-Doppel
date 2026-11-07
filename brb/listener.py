@@ -101,7 +101,7 @@ async def start_onboarding(sender_id: str, username: str, real_name: str, origin
         await asyncio.to_thread(post_message, origin, message)
         return
     async with quiz_lock:
-        first = await asyncio.to_thread(handle_quiz, sender_id, username, "start quiz", True)
+        first = await asyncio.to_thread(handle_quiz, sender_id, username, "start quiz", True, room_id)
     await asyncio.to_thread(post_message, room_id, welcome_text(real_name, first))
 
 
@@ -138,7 +138,7 @@ async def handle_message(data: dict) -> None:
     # The lock handles one quiz step at a time. The thread keeps pings flowing.
     async with quiz_lock:
         reply = await asyncio.to_thread(
-            handle_quiz, payload.get("sender") or name, name, text, addressed
+            handle_quiz, payload.get("sender") or name, name, text, addressed, data["room_id"]
         )
 
     follow_up = None

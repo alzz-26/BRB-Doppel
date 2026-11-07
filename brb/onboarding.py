@@ -49,13 +49,12 @@ def call_op(name: str, body: dict) -> dict:
 
 
 def open_private_room(username: str, real_name: str, origin_room: str) -> str:
-    """Reuse this person's private room, or create one. Return its room id."""
-    rooms = load_rooms()
-    if username in rooms:
-        rooms[username]["origin"] = origin_room
-        save_rooms(rooms)
-        return rooms[username]["room_id"]
+    """Create a private room for this person. Return its room id.
 
+    Always a fresh room: deleting the channel in Discord doesn't close the
+    Switch room, so an old room may have no channel left to post in.
+    """
+    rooms = load_rooms()
     bridge = pick_bridge(call_op("list_bridges", {}))
     if bridge is None:
         raise RuntimeError("No connected chat app can create channels.")

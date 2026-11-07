@@ -10,6 +10,8 @@ import argparse
 import json
 from pathlib import Path
 
+from dotenv import dotenv_values
+
 from doppel_files import PROVIDERS, provider_files, scope_section, starter_persona, starter_status
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -67,12 +69,14 @@ def main() -> None:
         print("  wrote", change)
 
     folder = (ROOT / "doppels" / args.name).resolve()
+    # setup.py saves BRB's agent name; a second copy may be called brb.test.
+    brb = dotenv_values(ROOT / ".env").get("BRB_NAME") or "brb"
     print(f"""
 Next, in Switch Console, signed in as {args.name}:
   1. Your Agents > new agent. Provider: {args.provider}. Name: {doppel}.
   2. Directory: {folder}
-  3. Who can talk to it: custom rule with {args.name}, their teammates, and the agent brb.
-  4. In the chat app: `@brb start quiz` to give the Doppel its persona.""")
+  3. Who can talk to it: custom rule with {args.name}, their teammates, and the agent {brb}.
+  4. In the chat app: `@{brb} onboard me` to give the Doppel its persona.""")
 
 
 if __name__ == "__main__":

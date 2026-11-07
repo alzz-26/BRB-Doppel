@@ -18,7 +18,7 @@ def test_pick_bridge_prefers_the_default_that_can_make_channels():
     assert onboarding.pick_bridge([{"id": "x", "status": "error", "can_create_channels": True}]) is None
 
 
-def test_private_room_is_made_once_and_reused(tmp_path, monkeypatch):
+def test_each_request_opens_a_fresh_private_room(tmp_path, monkeypatch):
     monkeypatch.setattr(onboarding, "ONBOARDING_PATH", tmp_path / "onboarding.json")
     calls = []
 
@@ -26,15 +26,16 @@ def test_private_room_is_made_once_and_reused(tmp_path, monkeypatch):
         calls.append((name, body))
         if name == "list_bridges":
             return [{"id": "discord", "status": "active", "can_create_channels": True}]
-        return {"id": "private-1"}
+        return {"id": f"private-{sum(1 for n, _ in calls if n == 'create_room')}"}
 
     monkeypatch.setattr(onboarding, "call_op", fake_op)
     assert onboarding.open_private_room("alzz_secondary", "Aliva", "team-room") == "private-1"
-    assert onboarding.open_private_room("alzz_secondary", "Aliva", "other-room") == "private-1"
+    # A deleted Discord channel leaves its Switch room open, so never reuse it.
+    assert onboarding.open_private_room("alzz_secondary", "Aliva", "other-room") == "private-2"
     create = [body for name, body in calls if name == "create_room"]
-    assert len(create) == 1
+    assert len(create) == 2
     assert create[0]["channel_type"] == "direct" and create[0]["user_names"] == ["alzz_secondary"]
-    assert onboarding.origin_of("private-1") == "other-room"
+    assert onboarding.origin_of("private-2") == "other-room"
     assert onboarding.origin_of("team-room") is None
 
 
@@ -49,7 +50,7 @@ def test_onboard_me_starts_the_quiz_privately_and_shares_only_the_card(tmp_path,
         return "private-1"
 
     monkeypatch.setattr(listener, "open_private_room", fake_open)
-    def fake_quiz(sender_id, name, text, addressed):
+    def fake_quiz(sender_id, name, text, addressed, room_id=None):
         if text == "start quiz":
             return "Question 1 of 10"
         if text == "a":
