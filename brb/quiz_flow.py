@@ -40,7 +40,8 @@ def write_persona(folder: str, name: str, answers: list[str], username: str) -> 
     style = write_style(name, archetype["title"], archetype["style"], style_picks(answers), doppel_folder)
     path = doppel_folder / "AGENTS.md"
     persona = build_persona(name, answers, style, username, load_team())
-    path.write_text(persona, encoding="utf-8")
+    # Unix line endings: the Doppel may read this file on a Linux server.
+    path.write_text(persona, encoding="utf-8", newline="\n")
 
 
 def handle_quiz(sender_id: str, sender_name: str, text: str, addressed: bool) -> str | None:

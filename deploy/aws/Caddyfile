@@ -1,0 +1,8 @@
+# Public HTTPS front door. Certificates are issued and renewed automatically.
+{$GATEWAY_HOST} {
+	reverse_proxy gateway:3000
+}
+
+{$API_HOST} {
+	reverse_proxy switch:8000
+}

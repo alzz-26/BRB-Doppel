@@ -1,0 +1,3 @@
+# Files that run on the Linux server keep Unix line endings on every checkout.
+deploy/aws/* text eol=lf
+*.sh text eol=lf

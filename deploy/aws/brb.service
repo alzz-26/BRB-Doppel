@@ -1,0 +1,20 @@
+[Unit]
+Description=BRB meeting manager
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=brb
+WorkingDirectory=/opt/brb
+ExecStart=/usr/local/bin/uv run --frozen brb/listener.py
+Restart=always
+RestartSec=5
+# Doppel folders are not shared between people. See bootstrap.sh.
+UMask=0027
+Environment=PATH=/opt/brb/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/opt/brb
+# Show print() output in journalctl straight away.
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

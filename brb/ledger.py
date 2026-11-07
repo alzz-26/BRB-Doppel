@@ -89,7 +89,7 @@ def write_decisions(username: str, member: dict, items: list[dict]) -> None:
                 lines.append(f"- {item['text']}")
         lines.append("")
     path = ROOT / "doppels" / member["folder"] / "decisions.md"
-    path.write_text("\n".join(lines), encoding="utf-8")
+    path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def add_lesson(member: dict, text: str, reason: str) -> None:
@@ -99,7 +99,7 @@ def add_lesson(member: dict, text: str, reason: str) -> None:
     if "## Lessons from your owner" not in persona:
         persona += "\n\n## Lessons from your owner\n"
     persona += f"\n- {member['name']} rejected \"{text}\". Reason: {reason}"
-    path.write_text(persona + "\n", encoding="utf-8")
+    path.write_text(persona + "\n", encoding="utf-8", newline="\n")
 
 
 def debrief(username: str, member: dict) -> str:

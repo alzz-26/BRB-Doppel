@@ -14,6 +14,14 @@ from meeting import (
     start_meeting,
 )
 
+from away import (
+    ask_doppel_message,
+    away_entry,
+    back_message,
+    handle_away_command,
+    mentioned_away_members,
+    set_back,
+)
 from ledger import capture_items, handle_ledger_command, owner_of_doppel
 
 # Importing post_message also loads .env.
@@ -57,6 +65,30 @@ async def run_meeting(room_id: str, seconds: int) -> None:
         await asyncio.to_thread(post_message, room_id, stand_in_message(member))
 
 
+async def bring_in(room_id: str, doppel: str) -> None:
+    """Invite a Doppel. Switch refuses if it's already here, which is fine."""
+    try:
+        await asyncio.to_thread(invite_agent, room_id, doppel)
+    except Exception as error:  # Already in the room, most often.
+        print(f"Invite {doppel}: {error}")
+
+
+async def ask_doppels_for_away(room_id: str, sender: str, real_name: str, text: str, team: dict) -> None:
+    """Someone tagged a teammate who is away. Their Doppel answers instead."""
+    for username, member in mentioned_away_members(text, sender, team):
+        entry = away_entry(username) or {"until": None}
+        await bring_in(room_id, member["doppel"])
+        message = ask_doppel_message(member, real_name, text, entry["until"])
+        await asyncio.to_thread(post_message, room_id, message)
+
+
+async def after_away_change(room_id: str, member: dict, change: str) -> None:
+    """Away: the Doppel joins this room. Back: the Doppel gives a catch-up."""
+    await bring_in(room_id, member["doppel"])
+    if change == "back":
+        await asyncio.to_thread(post_message, room_id, back_message(member))
+
+
 async def ledger_command(name: str, text: str, team: dict) -> str | None:
     """Keep the words' original case, so a rejection reason reads as typed."""
     async with quiz_lock:
@@ -92,17 +124,26 @@ async def handle_message(data: dict) -> None:
             handle_quiz, payload.get("sender") or name, name, text, addressed
         )
 
+    follow_up = None
     if reply is None:
         room_id = data["room_id"]
         command = clean_text(text).lower()
         seconds = parse_meeting_command(command)
 
         if mark_present(room_id, name, command):
+            set_back(name)  # Answering a roll call means you're back.
             reply = f"Got it, {real_name} is here."
         elif not addressed:
+            # BRB never reacts to its own posts.
+            if name.lower() != "brb":
+                await ask_doppels_for_away(room_id, name, real_name, text, team)
             return
         elif (ledger_reply := await ledger_command(name, text, team)) is not None:
             reply = ledger_reply
+        elif (away_result := handle_away_command(name, command, team)) is not None:
+            reply, change = away_result
+            if change:
+                follow_up = after_away_change(room_id, team[name], change)
         elif seconds is not None:
             if start_meeting(room_id):
                 reply = f"Meeting starting! Reply `here` within {seconds} seconds."
@@ -112,6 +153,7 @@ async def handle_message(data: dict) -> None:
         elif "help" in text.lower():
             reply = (
                 "Commands: `start quiz`, `quit`, `meeting`, `meeting 30`, "
+                "`away until 11pm`, `away for 2h`, `back`, "
                 "`debrief`, `approve 1`, `reject 1 reason`."
             )
         else:
@@ -120,9 +162,12 @@ async def handle_message(data: dict) -> None:
     print(f"{name}: {text}")
     # post_message is blocking, so run it off the heartbeat loop.
     await asyncio.to_thread(post_message, data["room_id"], reply)
+    if follow_up is not None:
+        await follow_up
 
 async def listen() -> None:
-    base = os.environ["SWITCH_URL"].replace("http://", "ws://", 1)
+    # "http" becomes "ws" and "https" becomes "wss".
+    base = os.environ["SWITCH_URL"].replace("http", "ws", 1)
     agent_id = os.environ["BRB_AGENT_ID"]
     url = (
         f"{base}/agents/{agent_id}/connection/ws"

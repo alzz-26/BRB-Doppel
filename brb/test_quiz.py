@@ -57,6 +57,9 @@ def test_full_quiz_writes_persona_and_clears_state(tmp_path, monkeypatch):
     assert "PENDING RATIFICATION: what was asked" in persona
     assert "Your owner's Discord username is `Aliva`" in persona
     assert "- `Aliva` is Aliva" in persona
+    assert "first check every room you are in" in persona
+    # Unix line endings, so a Doppel on a Linux server can edit it cleanly.
+    assert b"\r\n" not in (tmp_path / "doppels" / "Aliva" / "AGENTS.md").read_bytes()
     assert quiz_flow.load_state() == {}
 
 

@@ -178,8 +178,10 @@ def build_people_sections(name: str, username: str, team: dict) -> str:
 ## Your owner
 
 Your owner's Discord username is `{username}`. Call them {name}.
-When they ask for an update, tell them what happened while they were away,
-including anything you agreed to and anything waiting for their approval.
+When they ask for an update, first check every room you are in: list your
+rooms and read the recent messages in each, not just the current chat. Then
+read `status.md` and `decisions.md`. Tell them what happened while they were
+away, including anything you agreed to and anything waiting for their approval.
 
 ## Your team
 

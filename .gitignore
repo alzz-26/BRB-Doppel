@@ -5,3 +5,4 @@ ProjectDocs/
 __pycache__/
 brb/__pycache__/
 data/
+*.pem

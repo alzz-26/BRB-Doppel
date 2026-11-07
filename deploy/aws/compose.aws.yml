@@ -1,0 +1,28 @@
+# Added on top of Switch's standalone compose file.
+# Postgres, the API and the Gateway stay on 127.0.0.1. Only Caddy is public.
+services:
+  postgres:
+    restart: unless-stopped
+  switch:
+    restart: unless-stopped
+  gateway:
+    restart: unless-stopped
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    profiles: ["gateway"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      GATEWAY_HOST: ${GATEWAY_HOST:?set by bootstrap.sh}
+      API_HOST: ${API_HOST:?set by bootstrap.sh}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      - gateway
+      - switch
+
+volumes:
+  caddydata:
