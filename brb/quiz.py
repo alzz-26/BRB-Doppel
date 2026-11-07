@@ -1,6 +1,8 @@
 import re
 from collections import Counter
 
+from doppel_files import scope_section
+
 ARCHETYPES = {
     "shipper": {
         "title": "The Midnight Shipper",
@@ -239,7 +241,7 @@ Read `decisions.md` before talking about past requests. It's the record of what
 approval: tell people to approve it through BRB, without tagging BRB yourself.
 
 Only tag the person you're replying to.
-{people}"""
+{people}{scope_section(name)}"""
 
 
 def build_card(name: str, answers: list[str]) -> str:

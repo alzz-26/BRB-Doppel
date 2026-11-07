@@ -59,6 +59,7 @@ def test_full_quiz_writes_persona_and_clears_state(tmp_path, monkeypatch):
     assert "- `Aliva` is Aliva" in persona
     assert "first check every room you are in" in persona
     assert "Write that line only once" in persona
+    assert "## Scope" in persona and "Never claim to be Aliva" in persona
     # Unix line endings, so a Doppel on a Linux server can edit it cleanly.
     assert b"\r\n" not in (tmp_path / "doppels" / "Aliva" / "AGENTS.md").read_bytes()
     assert quiz_flow.load_state() == {}

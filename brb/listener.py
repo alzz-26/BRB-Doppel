@@ -27,7 +27,9 @@ from ledger import capture_items, handle_ledger_command, owner_of_doppel
 # Importing post_message also loads .env.
 from post_message import ENV_PATH, invite_agent, post_message
 from quiz import clean_text
+from onboarding import ONBOARD_COMMANDS, open_private_room, origin_of, welcome_text
 from quiz_flow import handle_quiz, load_team
+from room_docs import sync_ledger_docs
 
 quiz_lock = asyncio.Lock()
 background_tasks = set()
@@ -89,6 +91,20 @@ async def after_away_change(room_id: str, member: dict, change: str) -> None:
         await asyncio.to_thread(post_message, room_id, back_message(member))
 
 
+async def start_onboarding(sender_id: str, username: str, real_name: str, origin: str) -> None:
+    """Open (or reuse) a private room with BRB and start the quiz there."""
+    try:
+        room_id = await asyncio.to_thread(open_private_room, username, real_name, origin)
+    except Exception as error:
+        print(f"Onboarding room for {username}: {error}")
+        message = f"I couldn't open a private room, {real_name}. Say `start quiz` here instead."
+        await asyncio.to_thread(post_message, origin, message)
+        return
+    async with quiz_lock:
+        first = await asyncio.to_thread(handle_quiz, sender_id, username, "start quiz", True)
+    await asyncio.to_thread(post_message, room_id, welcome_text(real_name, first))
+
+
 async def ledger_command(name: str, text: str, team: dict) -> str | None:
     """Keep the words' original case, so a rejection reason reads as typed."""
     async with quiz_lock:
@@ -112,6 +128,7 @@ async def handle_message(data: dict) -> None:
         owner = new_items[0]["name"]
         note = f"Logged {logged} for {owner}'s approval."
         await asyncio.to_thread(post_message, data["room_id"], note)
+        run_in_background(sync_ledger_docs())
         return
 
     # Doppels only report to the ledger. BRB never holds a conversation with them.
@@ -125,6 +142,10 @@ async def handle_message(data: dict) -> None:
         )
 
     follow_up = None
+    # A quiz finished in a private room: the team sees only the welcome card.
+    if reply and reply.startswith("**Welcome") and (origin := origin_of(data["room_id"])):
+        follow_up = asyncio.to_thread(post_message, origin, reply)
+
     if reply is None:
         room_id = data["room_id"]
         command = clean_text(text).lower()
@@ -135,15 +156,23 @@ async def handle_message(data: dict) -> None:
             reply = f"Got it, {real_name} is here."
         elif not addressed:
             # BRB never reacts to its own posts.
-            if name.lower() != "brb":
+            if name.lower() != os.environ.get("BRB_NAME", "brb").lower():
                 await ask_doppels_for_away(room_id, name, real_name, text, team)
             return
         elif (ledger_reply := await ledger_command(name, text, team)) is not None:
             reply = ledger_reply
+            if command.split()[0] in ("approve", "reject"):
+                run_in_background(sync_ledger_docs())
         elif (away_result := handle_away_command(name, command, team)) is not None:
             reply, change = away_result
             if change:
                 follow_up = after_away_change(room_id, team[name], change)
+        elif command in ONBOARD_COMMANDS:
+            if name not in team:
+                reply = f"{name}, you aren't in brb/team.json yet."
+            else:
+                reply = f"Opening a private room for you, {real_name}. Look for it in your channel list."
+                follow_up = start_onboarding(payload.get("sender") or name, name, real_name, room_id)
         elif seconds is not None:
             if start_meeting(room_id):
                 reply = f"Meeting starting! Reply `here` within {seconds} seconds."
@@ -152,7 +181,7 @@ async def handle_message(data: dict) -> None:
                 reply = "A roll call is already running here."
         elif "help" in text.lower():
             reply = (
-                "Commands: `start quiz`, `quit`, `meeting`, `meeting 30`, "
+                "Commands: `onboard me`, `start quiz`, `quit`, `meeting`, `meeting 30`, "
                 "`away until 11pm`, `away for 2h`, `back`, "
                 "`debrief`, `approve 1`, `reject 1 reason`."
             )
