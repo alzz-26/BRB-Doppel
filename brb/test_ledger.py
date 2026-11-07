@@ -80,3 +80,21 @@ def test_other_commands_and_bad_input(tmp_path, monkeypatch):
     assert "Use `approve" in ledger.handle_ledger_command("alzz_26", "approve soon", TEAM)
     assert "no item 9" in ledger.handle_ledger_command("alzz_26", "approve 9", TEAM)
     assert "team.json" in ledger.handle_ledger_command("stranger", "debrief", TEAM)
+
+
+def test_a_reworded_repeat_is_skipped_but_a_changed_request_is_kept(tmp_path, monkeypatch):
+    use_temp_folders(tmp_path, monkeypatch)
+    # The real lines from the AWS test on Nov 7: #3, then its repeat in a catch-up.
+    first = "start the landing page (not the dashboard), now 1 day with some features cut, details to follow. Asked by Alisha"
+    repeat = "start the landing page (not the dashboard), 1 day with some features cut. Asked by Alisha"
+    changed = "start the landing page (not the dashboard), expected 1 day, up to 1.5 days. Asked by Alisha"
+    assert len(add_item(first)) == 1
+    assert add_item(repeat) == []
+    assert len(add_item(changed)) == 1
+
+
+def test_the_reject_hint_has_no_raw_mention(tmp_path, monkeypatch):
+    use_temp_folders(tmp_path, monkeypatch)
+    add_item()
+    reply = ledger.handle_ledger_command("alzz_secondary", "reject 1", TEAM)
+    assert "@" not in reply and "`reject 1 your reason`" in reply

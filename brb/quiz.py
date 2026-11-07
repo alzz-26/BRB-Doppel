@@ -226,6 +226,10 @@ task is committed or agreed. Put each one on its own line in this exact format:
 
 PENDING RATIFICATION: what was asked and who asked
 
+Write that line only once, when someone first asks for something. Never repeat
+it in a summary, a catch-up or a reply to {name}: BRB has already logged it, so
+mention its number instead.
+
 Outside these limits, also say you can't promise it.
 
 ## Decisions

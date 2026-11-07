@@ -3,6 +3,7 @@
 import json
 import re
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,6 +36,15 @@ def owner_of_doppel(doppel_name: str, team: dict) -> tuple[str, dict] | None:
     return None
 
 
+def same_request(old: str, new: str) -> bool:
+    """A Doppel often repeats a pending line in other words, like in a catch-up.
+
+    0.85 caught a real reworded repeat (0.89) but kept a changed request,
+    such as a new deadline (0.72 to 0.78), as its own item.
+    """
+    return SequenceMatcher(None, old.lower(), new.lower()).ratio() >= 0.85
+
+
 def capture_items(doppel_name: str, body: str, room_id: str, team: dict) -> list[dict]:
     """Save each PENDING RATIFICATION line from a Doppel and return the new items."""
     found = owner_of_doppel(doppel_name, team)
@@ -48,7 +58,7 @@ def capture_items(doppel_name: str, body: str, room_id: str, team: dict) -> list
         repeat = any(
             item["owner"] == username
             and item["status"] == "pending"
-            and item["text"].lower() == text.lower()
+            and same_request(item["text"], text)
             for item in items
         )
         if repeat:
@@ -127,7 +137,8 @@ def decide(username: str, member: dict, command: str) -> str:
     if item["status"] != "pending":
         return f"Item {item_id} is already {item['status']}."
     if action == "reject" and not reason:
-        return f"Why? Reply `@brb reject {item_id} your reason`, so your Doppel can learn."
+        # No @ inside the code span: Discord would show it as a raw role id.
+        return f"Why? Tag BRB and reply `reject {item_id} your reason`, so your Doppel can learn."
 
     item["status"] = "approved" if action == "approve" else "rejected"
     item["reason"] = reason
