@@ -8,7 +8,7 @@ BRB is the fix: **Be Right Back, and your Doppel holds your seat while you're go
 
 Built on [Switch](https://github.com/sandbox-quantum/switch) for the Flip the Switch hackathon (Track 1: Best Business Workflow). Runs in Discord.
 
-> Demo video: _link coming_
+> Demo video: **https://youtu.be/fPOWDoTJo0E**
 
 ---
 
